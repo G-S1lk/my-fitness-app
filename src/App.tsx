@@ -15,6 +15,25 @@ interface WorkoutItem {
 }
 
 export default function App() {
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setInstallPrompt(null);
+    }
+  };
   // 1. Ημερομηνία Ημερολογίου (YYYY-MM-DD)
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split('T')[0]
@@ -164,6 +183,14 @@ export default function App() {
       <div className="flex items-center justify-between mb-4 mt-2">
         <h1 className="text-xl font-black tracking-tight text-white flex items-center gap-2">
           <span>FIT TRACKER</span>
+          {installPrompt && (
+        <button
+          onClick={handleInstallClick}
+          className="w-full mb-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 animate-pulse"
+        >
+          📲 Εγκατάσταση Εφαρμογής στο Κινητό
+        </button>
+      )}
         </h1>
         <button 
           onClick={setToday}
