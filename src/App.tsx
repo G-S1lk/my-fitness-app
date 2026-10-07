@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
-import { ChevronLeft, ChevronRight, Dumbbell, Flame, Plus, Trash2, Calendar } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Dumbbell, Flame, Plus, Trash2, Calendar, Sparkles } from 'lucide-react';
 
 interface WorkoutItem {
   id: string;
@@ -14,9 +14,121 @@ interface WorkoutItem {
   incline?: number;
 }
 
+// Βάση δεδομένων με τις 10 πιο γνωστές ασκήσεις ανά μυϊκή ομάδα
+const EXERCISE_DATABASE: Record<string, string[]> = {
+  "Στήθος": [
+    "Bench Press (Ίσιος Πάγκος)",
+    "Incline Dumbbell Press (Επικλινής με Αλτήρες)",
+    "Dumbbell Flyes (Ανοίγματα)",
+    "Dips (Βυθίσεις Στήθους)",
+    "Cable Crossover (Τροχαλία)",
+    "Push-ups (Κάμψεις)",
+    "Chest Press Machine",
+    "Incline Barbell Press",
+    "Pec Deck Machine",
+    "Decline Dumbbell Press"
+  ],
+  "Πλάτη": [
+    "Deadlift (Άρσεις Θανάτου)",
+    "Pull-ups (Έλξεις Μονοζύγου)",
+    "Lat Pulldown (Έλξεις Τροχαλίας)",
+    "Barbell Row (Κωπηλατική με Μπάρα)",
+    "Seated Cable Row (Κωπηλατική Τροχαλίας)",
+    "One-Arm Dumbbell Row",
+    "T-Bar Row",
+    "Face Pulls",
+    "Hyperextensions (Ραχιαίοι)",
+    "Straight Arm Pulldown"
+  ],
+  "Πόδια": [
+    "Barbell Squat (Κάθισμα με Μπάρα)",
+    "Leg Press (Πρέσα)",
+    "Romanian Deadlift (RDL)",
+    "Bulgarian Split Squat",
+    "Leg Extension (Τετρακέφαλοι)",
+    "Lying Leg Curl (Μηριαίοι Δικέφαλοι)",
+    "Calf Raises (Γάμπες)",
+    "Walking Lunges (Προβολές)",
+    "Hip Thrust (Γλουτοί)",
+    "Hack Squat"
+  ],
+  "Ώμοι": [
+    "Overhead Press (OHP με Μπάρα)",
+    "Dumbbell Shoulder Press",
+    "Lateral Raises (Πλάγιες Εκτάσεις)",
+    "Arnold Press",
+    "Rear Delt Flyes (Οπίσθιοι Δελτοειδείς)",
+    "Front Raises (Εμπρόσθιες Εκτάσεις)",
+    "Cable Lateral Raises",
+    "Upright Row",
+    "Dumbbell Shrugs (Τραπεζοειδείς)",
+    "Machine Shoulder Press"
+  ],
+  "Χέρια": [
+    "Barbell Bicep Curl",
+    "Dumbbell Hammer Curl",
+    "Preacher Curl (Μαξιλάρι)",
+    "Incline Dumbbell Curl",
+    "Tricep Pushdown (Τροχαλία)",
+    "Skull Crushers (Γαλλικές)",
+    "Close Grip Bench Press",
+    "Overhead Tricep Extension",
+    "Dips Τρικεφάλων σε Πάγκο",
+    "Cable Bicep Curl"
+  ],
+  "Κοιλιακοί / Core": [
+    "Plank (Σανίδα)",
+    "Hanging Leg Raises",
+    "Cable Woodchoppers",
+    "Ab Wheel Rollout",
+    "Crunches (Ροκανίσματα)",
+    "Russian Twists",
+    "Bicycle Crunches",
+    "Decline Sit-ups",
+    "Mountain Climbers",
+    "Leg Raises στο Πάτωμα"
+  ],
+  "Cardio": [
+    "Διάδρομος (Treadmill)",
+    "Στατικό Ποδήλατο",
+    "Ελλειπτικό (Elliptical)",
+    "Stairmaster (Σκάλες)",
+    "Κωπηλατικό (Rowing)",
+    "Σχοινάκι (Jump Rope)",
+    "Air Bike",
+    "Τρέξιμο σε Εξωτερικό Χώρο",
+    "HIIT / Sprint Διαλείμματα",
+    "Box Jumps"
+  ]
+};
+
 export default function App() {
   const [installPrompt, setInstallPrompt] = useState<any>(null);
 
+  // Ημερομηνία Ημερολογίου (YYYY-MM-DD)
+  const [selectedDate, setSelectedDate] = useState<string>(
+    new Date().toISOString().split('T')[0]
+  );
+
+  const [category, setCategory] = useState<'resistance' | 'cardio'>('resistance');
+  const [exerciseName, setExerciseName] = useState('');
+  
+  // Επιλογές γρήγορης λίστας ασκήσεων
+  const [selectedMuscle, setSelectedMuscle] = useState<string>('');
+
+  // Resistance State
+  const [weight, setWeight] = useState('');
+  const [reps, setReps] = useState('');
+
+  // Cardio State
+  const [duration, setDuration] = useState('');
+  const [distance, setDistance] = useState('');
+  const [incline, setIncline] = useState('');
+
+  const [workoutItems, setWorkoutItems] = useState<WorkoutItem[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Listener για εγκατάσταση PWA
   useEffect(() => {
     const handler = (e: any) => {
       e.preventDefault();
@@ -34,25 +146,25 @@ export default function App() {
       setInstallPrompt(null);
     }
   };
-  // 1. Ημερομηνία Ημερολογίου (YYYY-MM-DD)
-  const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split('T')[0]
-  );
 
-  const [category, setCategory] = useState<'resistance' | 'cardio'>('resistance');
-  const [exerciseName, setExerciseName] = useState('');
-  
-  // Resistance State
-  const [weight, setWeight] = useState('');
-  const [reps, setReps] = useState('');
+  // Απαγόρευση παρατεταμένου κλικ / context menu στο κινητό
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('contextmenu', handleContextMenu);
+    return () => window.removeEventListener('contextmenu', handleContextMenu);
+  }, []);
 
-  // Cardio State
-  const [duration, setDuration] = useState('');
-  const [distance, setDistance] = useState('');
-  const [incline, setIncline] = useState('');
-
-  const [workoutItems, setWorkoutItems] = useState<WorkoutItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  // Μετατροπή YYYY-MM-DD σε DD/MM/YYYY (Σωστή τοποθέτηση!)
+  const formatDateDisplay = (dateStr: string) => {
+    if (!dateStr) return '';
+    const [year, month, day] = dateStr.split('-');
+    return `${day}/${month}/${year}`;
+  };
 
   // Αλλαγή ημέρας ( +1 / -1 )
   const changeDate = (days: number) => {
@@ -66,7 +178,7 @@ export default function App() {
     setSelectedDate(new Date().toISOString().split('T')[0]);
   };
 
-  // Φόρτωση ασκήσεων για την επιλεγμένη ημέρα
+  // Φόρτωση ασκήσεων για την ημέρα
   const fetchWorkouts = async () => {
     setLoading(true);
     try {
@@ -107,7 +219,6 @@ export default function App() {
     if (!exerciseName.trim()) return alert('Συμπλήρωσε το όνομα της άσκησης!');
 
     try {
-      // 1. Έλεγχος αν υπάρχει workout για τη μέρα, αλλιώς δημιουργία
       let { data: workout } = await supabase
         .from('workouts')
         .select('id')
@@ -129,7 +240,6 @@ export default function App() {
         currentWorkoutId = newWorkout.id;
       }
 
-      // 2. Εισαγωγή της άσκησης
       if (category === 'resistance') {
         if (!weight || !reps) return alert('Συμπλήρωσε κιλά και επαναλήψεις!');
         const { error } = await supabase.from('workout_items').insert([{
@@ -153,15 +263,15 @@ export default function App() {
         if (error) throw error;
       }
 
-      // Καθαρισμός πεδίων
+      // Καθαρισμός φορμών
       setExerciseName('');
       setWeight('');
       setReps('');
       setDuration('');
       setDistance('');
       setIncline('');
+      setSelectedMuscle('');
       
-      // Ανανέωση λίστας
       fetchWorkouts();
     } catch (err: any) {
       alert('Σφάλμα: ' + err.message);
@@ -179,11 +289,8 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 max-w-md mx-auto font-sans pb-20">
       
-      {/* Τίτλος */}
-      <div className="flex items-center justify-between mb-4 mt-2">
-        <h1 className="text-xl font-black tracking-tight text-white flex items-center gap-2">
-          <span>FIT TRACKER</span>
-          {installPrompt && (
+      {/* Κουμπί Εγκατάστασης (αν είναι διαθέσιμο) */}
+      {installPrompt && (
         <button
           onClick={handleInstallClick}
           className="w-full mb-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 animate-pulse"
@@ -191,6 +298,11 @@ export default function App() {
           📲 Εγκατάσταση Εφαρμογής στο Κινητό
         </button>
       )}
+
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4 mt-2">
+        <h1 className="text-xl font-black tracking-tight text-white flex items-center gap-2">
+          <span>FIT TRACKER</span>
         </h1>
         <button 
           onClick={setToday}
@@ -210,7 +322,7 @@ export default function App() {
         </button>
         <div className="text-center">
           <span className="text-[10px] text-slate-500 uppercase tracking-widest block font-bold">Ημερομηνια</span>
-          <span className="font-bold text-base text-indigo-400">{selectedDate}</span>
+          <span className="font-bold text-base text-indigo-400">{formatDateDisplay(selectedDate)}</span>
         </div>
         <button 
           onClick={() => changeDate(1)} 
@@ -223,7 +335,10 @@ export default function App() {
       {/* 2. Επιλογή Κατηγορίας: Resistance vs Cardio */}
       <div className="grid grid-cols-2 gap-2 bg-slate-900 p-1.5 rounded-xl border border-slate-800/80 mb-6">
         <button
-          onClick={() => setCategory('resistance')}
+          onClick={() => {
+            setCategory('resistance');
+            setSelectedMuscle('');
+          }}
           className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${
             category === 'resistance' 
               ? 'bg-indigo-600 text-white shadow-md' 
@@ -233,7 +348,10 @@ export default function App() {
           <Dumbbell className="w-4 h-4" /> Βάρη
         </button>
         <button
-          onClick={() => setCategory('cardio')}
+          onClick={() => {
+            setCategory('cardio');
+            setSelectedMuscle('Cardio');
+          }}
           className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${
             category === 'cardio' 
               ? 'bg-rose-600 text-white shadow-md' 
@@ -246,6 +364,47 @@ export default function App() {
 
       {/* 3. Φόρμα Καταγραφής */}
       <form onSubmit={handleAddItem} className="bg-slate-900 p-4 rounded-2xl border border-slate-800/80 space-y-4 mb-6 shadow-sm">
+        
+        {/* Quick Select Ασκήσεων ανά Μυϊκή Ομάδα */}
+        <div className="bg-slate-950 p-3 rounded-xl border border-slate-800/60 space-y-2.5">
+          <label className="text-[11px] font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5" /> Γρηγορη Επιλογη Ασκησης
+          </label>
+          
+          <div className="grid grid-cols-2 gap-2">
+            {/* Dropdown Μυϊκής Ομάδας */}
+            <select
+              value={selectedMuscle}
+              onChange={(e) => {
+                setSelectedMuscle(e.target.value);
+                setExerciseName('');
+              }}
+              className="bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+            >
+              <option value="">Μυϊκή Ομάδα...</option>
+              {Object.keys(EXERCISE_DATABASE)
+                .filter((muscle) => category === 'cardio' ? muscle === 'Cardio' : muscle !== 'Cardio')
+                .map((muscle) => (
+                  <option key={muscle} value={muscle}>{muscle}</option>
+                ))}
+            </select>
+
+            {/* Dropdown των 10 Ασκήσεων */}
+            <select
+              disabled={!selectedMuscle}
+              value={exerciseName}
+              onChange={(e) => setExerciseName(e.target.value)}
+              className="bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 disabled:opacity-50"
+            >
+              <option value="">Διάλεξε άσκηση...</option>
+              {selectedMuscle && EXERCISE_DATABASE[selectedMuscle]?.map((ex) => (
+                <option key={ex} value={ex}>{ex}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Input Όνομα Άσκησης (αν θες δικό σου) */}
         <div>
           <label className="text-xs text-slate-400 mb-1.5 block">Όνομα Άσκησης</label>
           <input

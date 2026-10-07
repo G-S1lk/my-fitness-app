@@ -1,3 +1,16 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Native App Feel: Απαγόρευση επιλογής κειμένου & popups σε όλη την οθόνη */
+* {
+  -webkit-touch-callout: none; /* iOS Safari popup */
+  -webkit-user-select: none;   /* Android Chrome / Safari */
+  user-select: none;
+}
+
+/* Επιτρέπουμε την επιλογή και πληκτρολόγηση ΜΟΝΟ μέσα στα πεδία (inputs) */
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
