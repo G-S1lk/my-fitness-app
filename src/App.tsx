@@ -5,7 +5,7 @@ import {
   Calendar, History, X, Info, ArrowUp, ArrowDown,
   Utensils, Moon, Droplets, Scale, BedDouble, Save, 
   TrendingDown, TrendingUp, Minus, Settings as SettingsIcon,
-  Target, Award, Coffee, Sun, Sunset, Apple, PlusCircle
+  Target, Award, Coffee, Sun, Sunset, Apple
 } from 'lucide-react';
 
 interface WorkoutItem {
