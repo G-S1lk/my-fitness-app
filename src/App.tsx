@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { 
   ChevronLeft, ChevronRight, Dumbbell, Flame, Plus, Trash2, 
-  Calendar, History, GripVertical, X, Info
+  Calendar, History, X, Info, ArrowUp, ArrowDown
 } from 'lucide-react';
 
 interface WorkoutItem {
@@ -45,7 +45,6 @@ const ALL_CARDIO_EXERCISES = [
   "Treadmill", "Elliptical", "Rowing",
   "Stationary Bike", "Jump Rope", "Outdoor Running"
 ];
-
 export default function App() {
   const [installPrompt, setInstallPrompt] = useState<any>(null);
 
@@ -77,10 +76,8 @@ export default function App() {
   } | null>(null);
   const [modalHistoryByDate, setModalHistoryByDate] = useState<Record<string, WorkoutItem[]>>({});
 
-  // Drag & Drop State
+  // Σειρά Ασκήσεων
   const [exerciseOrder, setExerciseOrder] = useState<string[]>([]);
-  const [draggingExercise, setDraggingExercise] = useState<string | null>(null);
-  const longPressTimer = useRef<any>(null);
 
   // PWA Install listener
   useEffect(() => {
@@ -99,7 +96,7 @@ export default function App() {
     if (outcome === 'accepted') setInstallPrompt(null);
   };
 
-  // Απαγόρευση context menu (popups) στο κινητό
+  // Απαγόρευση context menu (popups) στο κινητό εκτός αν είναι inputs
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -162,7 +159,7 @@ export default function App() {
     fetchWorkouts();
   }, [selectedDate]);
 
-  // Ομαδοποίηση σημερινών σετ ανά άσκηση
+  // Ομαδοποίηση σετ ανά άσκηση
   const groupedExercises = workoutItems.reduce((acc, item) => {
     if (!acc[item.exercise_name]) {
       acc[item.exercise_name] = {
@@ -184,7 +181,20 @@ export default function App() {
     });
   }, [workoutItems]);
 
-  // Φόρτωση ιστορικού για το Modal (Ομαδοποίηση ανά ημερομηνία)
+  // Μετακίνηση άσκησης πάνω / κάτω
+  const moveExercise = (index: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= exerciseOrder.length) return;
+
+    setExerciseOrder((prev) => {
+      const updated = [...prev];
+      const [movedItem] = updated.splice(index, 1);
+      updated.splice(targetIndex, 0, movedItem);
+      return updated;
+    });
+  };
+
+  // Φόρτωση ιστορικού για το Modal (κουτάκια ανά ημερομηνία)
   const openExerciseModal = async (group: { name: string; category: 'resistance' | 'cardio'; items: WorkoutItem[] }) => {
     setModalExercise(group);
     try {
@@ -198,7 +208,6 @@ export default function App() {
         const byDate: Record<string, WorkoutItem[]> = {};
         data.forEach((item: any) => {
           const itemDate = item.workouts?.workout_date || (item.created_at ? item.created_at.split('T')[0] : 'Άγνωστη');
-          // Εξαιρούμε τη σημερινή μέρα γιατί φαίνεται ήδη στα "Σημερινά Σετ"
           if (itemDate === selectedDate) return;
           if (!byDate[itemDate]) {
             byDate[itemDate] = [];
@@ -284,45 +293,6 @@ export default function App() {
     }
   };
 
-  // ================= DRAG & DROP =================
-  const handleTouchStart = (name: string) => {
-    longPressTimer.current = setTimeout(() => {
-      setDraggingExercise(name);
-      if (typeof window !== 'undefined' && 'vibrate' in navigator) {
-        navigator.vibrate(40);
-      }
-    }, 350);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!draggingExercise) {
-      clearTimeout(longPressTimer.current);
-      return;
-    }
-    const touch = e.touches[0];
-    const element = document.elementFromPoint(touch.clientX, touch.clientY);
-    const targetCard = element?.closest('[data-exercise-name]');
-    if (targetCard) {
-      const targetName = targetCard.getAttribute('data-exercise-name');
-      if (targetName && targetName !== draggingExercise) {
-        setExerciseOrder((prev) => {
-          const curIdx = prev.indexOf(draggingExercise);
-          const tgtIdx = prev.indexOf(targetName);
-          if (curIdx === -1 || tgtIdx === -1) return prev;
-          const updated = [...prev];
-          updated.splice(curIdx, 1);
-          updated.splice(tgtIdx, 0, draggingExercise);
-          return updated;
-        });
-      }
-    }
-  };
-
-  const handleTouchEnd = () => {
-    clearTimeout(longPressTimer.current);
-    setDraggingExercise(null);
-  };
-
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 max-w-md mx-auto font-sans pb-24">
       
@@ -399,7 +369,7 @@ export default function App() {
         </button>
       </div>
 
-      {/* 3. Φόρμα Καταγραφής (Πεντακάθαρη, χωρίς το περιττό κουτί ιστορικού) */}
+      {/* 3. Φόρμα Καταγραφής */}
       <form onSubmit={handleAddItem} className="bg-slate-900 p-4 rounded-2xl border border-slate-800/80 space-y-4 mb-6 shadow-sm">
         <div>
           <label className="text-xs text-slate-400 mb-1.5 block">Διάλεξε ή Γράψε Άσκηση</label>
@@ -494,14 +464,14 @@ export default function App() {
         </button>
       </form>
 
-      {/* 4. Ομαδοποιημένη Λίστα Ασκήσεων με Drag & Drop */}
+      {/* 4. Ομαδοποιημένη Λίστα Ασκήσεων με Βελάκια Σειράς */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
             Σημερινες Ασκησεις
           </h3>
           <span className="text-[10px] text-slate-600">
-            Παρατεταμένο πάτημα για αλλαγή σειράς
+            Χρησιμοποίησε τα βελάκια για αλλαγή σειράς
           </span>
         </div>
         
@@ -512,53 +482,26 @@ export default function App() {
             <p className="text-sm text-slate-500">Καμία καταγεγραμμένη άσκηση για αυτή τη μέρα.</p>
           </div>
         ) : (
-          <div 
-            className="space-y-3"
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-          >
-            {exerciseOrder.map((name) => {
+          <div className="space-y-3">
+            {exerciseOrder.map((name, index) => {
               const group = groupedExercises[name];
               if (!group) return null;
-              const isDragging = draggingExercise === name;
 
               return (
                 <div
                   key={name}
-                  data-exercise-name={name}
-                  onTouchStart={() => handleTouchStart(name)}
-                  draggable
-                  onDragStart={() => setDraggingExercise(name)}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    if (draggingExercise && draggingExercise !== name) {
-                      setExerciseOrder((prev) => {
-                        const curIdx = prev.indexOf(draggingExercise);
-                        const tgtIdx = prev.indexOf(name);
-                        const updated = [...prev];
-                        updated.splice(curIdx, 1);
-                        updated.splice(tgtIdx, 0, draggingExercise);
-                        return updated;
-                      });
-                    }
-                  }}
-                  onDragEnd={() => setDraggingExercise(null)}
-                  className={`bg-slate-900 border rounded-2xl p-4 transition-all shadow-sm ${
-                    isDragging 
-                      ? 'border-indigo-500 shadow-indigo-500/20 shadow-lg scale-[1.02] bg-slate-850' 
-                      : 'border-slate-800/80 hover:border-slate-700'
-                  }`}
+                  className="bg-slate-900 border border-slate-800/80 hover:border-slate-700 rounded-2xl p-4 transition-all shadow-sm"
                 >
-                  {/* Header: Όνομα + Grip + Κλικ για Modal */}
+                  {/* Header: Όνομα + Badge + Βελάκια Σειράς */}
                   <div className="flex items-center justify-between border-b border-slate-800/60 pb-3 mb-3">
                     <div 
                       onClick={() => openExerciseModal(group)}
-                      className="cursor-pointer flex-1 flex items-center gap-2 group"
+                      className="cursor-pointer flex-1 flex items-center gap-2 group mr-2"
                     >
                       <h4 className="font-bold text-sm text-white group-hover:text-indigo-400 transition-colors">
                         {group.name}
                       </h4>
-                      <Info className="w-3.5 h-3.5 text-slate-600 group-hover:text-indigo-400 transition-colors" />
+                      <Info className="w-3.5 h-3.5 text-slate-600 group-hover:text-indigo-400 transition-colors shrink-0" />
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -569,8 +512,27 @@ export default function App() {
                       }`}>
                         {group.category === 'resistance' ? `${group.items.length} Σετ` : 'Cardio'}
                       </span>
-                      <div className="text-slate-600 cursor-grab active:cursor-grabbing p-1">
-                        <GripVertical className="w-4 h-4" />
+
+                      {/* Βελάκια για αλλαγή σειράς (Πάνω / Κάτω) */}
+                      <div className="flex items-center bg-slate-950 rounded-lg p-0.5 border border-slate-800/80">
+                        <button
+                          type="button"
+                          onClick={() => moveExercise(index, 'up')}
+                          disabled={index === 0}
+                          className="p-1 hover:bg-slate-800 disabled:opacity-20 text-slate-400 hover:text-white rounded transition-colors"
+                          title="Μετακίνηση πάνω"
+                        >
+                          <ArrowUp className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveExercise(index, 'down')}
+                          disabled={index === exerciseOrder.length - 1}
+                          className="p-1 hover:bg-slate-800 disabled:opacity-20 text-slate-400 hover:text-white rounded transition-colors"
+                          title="Μετακίνηση κάτω"
+                        >
+                          <ArrowDown className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -692,10 +654,9 @@ export default function App() {
               ) : (
                 <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
                   {Object.entries(modalHistoryByDate)
-                    .sort(([dateA], [dateB]) => dateB.localeCompare(dateA)) // πιο πρόσφατη μέρα πρώτη
+                    .sort(([dateA], [dateB]) => dateB.localeCompare(dateA))
                     .map(([dateStr, sets]) => (
                       <div key={dateStr} className="bg-slate-950 p-3 rounded-2xl border border-slate-800/80 space-y-2 shadow-sm">
-                        {/* Κεφαλίδα κουτιού με Ημερομηνία */}
                         <div className="flex justify-between items-center border-b border-slate-800/60 pb-1.5">
                           <span className="text-xs font-bold text-indigo-400 flex items-center gap-1">
                             📅 {formatDateDisplay(dateStr)}
@@ -705,7 +666,6 @@ export default function App() {
                           </span>
                         </div>
 
-                        {/* Λίστα σετ εκείνης της ημέρας */}
                         <div className="space-y-1">
                           {sets.map((s, sIdx) => (
                             <div key={s.id} className="flex justify-between items-center text-xs text-slate-300">
