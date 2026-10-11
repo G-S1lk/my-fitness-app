@@ -2,15 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Native App Feel: Απαγόρευση επιλογής κειμένου & popups σε όλη την οθόνη */
+/* Native App Feel: Απαγόρευση επιλογής κειμένου & popups */
 * {
-  -webkit-touch-callout: none; /* iOS Safari popup */
-  -webkit-user-select: none;   /* Android Chrome / Safari */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
   user-select: none;
 }
 
-/* Επιτρέπουμε την επιλογή και πληκτρολόγηση ΜΟΝΟ μέσα στα πεδία (inputs) */
 input, textarea {
   -webkit-user-select: text;
   user-select: text;
+}
+
+/* Εξαφάνιση των stepper arrows (βελάκια) από όλα τα number inputs */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
 }
