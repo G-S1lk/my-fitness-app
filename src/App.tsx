@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabaseClient';
 import { 
-  ChevronLeft, ChevronRight, Dumbbell, Flame, Plus, Trash2, 
-  Calendar, History, X, Info, ArrowUp, ArrowDown,
-  Utensils, Moon, Droplets, Scale, BedDouble, Save, 
-  TrendingDown, TrendingUp, Minus, Settings as SettingsIcon,
-  Target, Award, Coffee, Sun, Sunset, Apple, Home, ArrowRight,
-  Search, Check
+  ChevronLeft, ChevronRight, Dumbbell, Plus, Trash2, 
+  Calendar, X, Info, ArrowUp, ArrowDown,
+  Utensils, Moon, Settings as SettingsIcon,
+  Award, Home, ArrowRight, Search, Check
 } from 'lucide-react';
 
 interface WorkoutItem {
